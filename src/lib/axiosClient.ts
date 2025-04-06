@@ -29,9 +29,11 @@ axiosClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = "/error-auth";
-    }
+    // TODO: ログイン時の認証エラー処理とjwt期限切れで処理を分ける
+    // if (error.response?.status === 401) {
+    //   window.location.href = "/error-auth";
+    // }
+    console.log(error);
     return Promise.reject(error);
   }
 );
