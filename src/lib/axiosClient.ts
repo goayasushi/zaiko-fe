@@ -29,11 +29,13 @@ axiosClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // TODO: ログイン時の認証エラー処理とjwt期限切れで処理を分ける
-    // if (error.response?.status === 401) {
-    //   window.location.href = "/error-auth";
-    // }
-    console.log(error);
+    // jwtトークンエラーの場合はエラー画面へリダイレクト
+    if (
+      error.response?.status === 401 &&
+      error.response?.data.code === "token_not_valid"
+    ) {
+      window.location.href = "/error-auth";
+    }
     return Promise.reject(error);
   }
 );
