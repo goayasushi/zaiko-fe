@@ -4,6 +4,7 @@ import {
   CloseButton,
   Drawer,
   Flex,
+  Link,
   Portal,
   Spinner,
   Text,
@@ -12,10 +13,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 
 import { useUser } from "@/context/UserContext";
+import { useLogout } from "@/hooks/useLogout";
 
 export const Header = () => {
   const router = useRouter();
   const { user, loading } = useUser();
+  const { logout } = useLogout();
 
   if (loading) {
     return (
@@ -68,6 +71,9 @@ export const Header = () => {
               <Drawer.Body>
                 <Text mb={4}>アカウント情報</Text>
                 <Text mb={4}>メールアドレス: {user?.email}</Text>
+                <Link onClick={logout} cursor="pointer">
+                  ログアウト
+                </Link>
               </Drawer.Body>
               <Drawer.CloseTrigger asChild>
                 <CloseButton size="sm" />
