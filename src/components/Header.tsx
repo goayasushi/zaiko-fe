@@ -36,8 +36,16 @@ export const Header = () => {
       align="center"
       justify="space-between"
       px="6"
-      boxShadow="sm"
+      boxShadow="none"
+      borderBottom="1px solid"
+      borderColor="gray.200"
+      bg="white"
       gap="4"
+      position="fixed"
+      top="0"
+      left="0"
+      right="0"
+      zIndex="2"
     >
       <Text
         fontSize="xl"
