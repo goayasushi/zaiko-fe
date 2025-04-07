@@ -16,6 +16,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { useForm } from "react-hook-form";
 import { jwtDecode } from "jwt-decode";
 import { useMutation } from "@tanstack/react-query";
+import { LoginFormData, LoginResponse } from "@/types";
 
 import axiosClient from "@/lib/axiosClient";
 
@@ -45,19 +46,19 @@ export default function Login() {
     }
   }, [router]);
 
-  type LoginFormData = {
-    email: string;
-    password: string;
-  };
-
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>();
 
-  const fetchLogin = async (LoginFormData: LoginFormData) => {
-    const { data } = await axiosClient.post("/api/auth/login/", LoginFormData);
+  const fetchLogin = async (
+    formData: LoginFormData
+  ): Promise<LoginResponse> => {
+    const { data } = await axiosClient.post<LoginResponse>(
+      "/api/auth/login/",
+      formData
+    );
     return data;
   };
 
@@ -73,11 +74,7 @@ export default function Login() {
   });
 
   return (
-    <form
-      onSubmit={handleSubmit((LoginFormData) =>
-        loginMutation.mutate(LoginFormData)
-      )}
-    >
+    <form onSubmit={handleSubmit((formData) => loginMutation.mutate(formData))}>
       <Flex minH="100vh" align="center" justify="center" bg="gray.50">
         <Fieldset.Root
           size="lg"
