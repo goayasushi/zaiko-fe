@@ -131,7 +131,7 @@ export const Sidebar = () => {
       left="0"
       h="calc(100vh - 61px)"
       w="220px"
-      bg="white"
+      bg="gray.50"
       borderRight="1px"
       borderRightColor="gray.200"
       overflowY="auto"
