@@ -95,7 +95,10 @@ export default function SupplierListPage() {
                   {suppliers.results.map((supplier: Supplier) => (
                     <Table.Row
                       key={supplier.id}
-                      onClick={() => router.push(`#`)}
+                      onClick={() =>
+                        router.push(`/partner/supplier/${supplier.id}`)
+                      }
+                      cursor="pointer"
                     >
                       <Table.Cell>{supplier.name}</Table.Cell>
                       <Table.Cell>{supplier.supplier_code}</Table.Cell>
