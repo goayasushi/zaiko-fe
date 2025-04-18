@@ -12,11 +12,14 @@ import {
   IconButton,
   Stack,
   Text,
+  Dialog,
+  Portal,
+  CloseButton,
 } from "@chakra-ui/react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LuArrowLeft, LuPencil, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuPencil, LuX, LuTrash2 } from "react-icons/lu";
 
 import { Supplier, SupplierFormData } from "@/types";
 import axiosClient from "@/lib/axiosClient";
@@ -40,6 +43,11 @@ const updateSupplier = async (
     formData
   );
   return data;
+};
+
+// 仕入先を削除する関数
+const deleteSupplier = async (id: string): Promise<void> => {
+  await axiosClient.delete(`/api/masters/suppliers/${id}/`);
 };
 
 // 詳細情報の項目コンポーネント
@@ -91,6 +99,21 @@ export default function SupplierDetailPage() {
     },
   });
 
+  // 削除ミューテーション
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteSupplier(supplierId),
+    onSuccess: () => {
+      // キャッシュの無効化
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+
+      // 一覧ページへリダイレクト
+      router.push("/partner/supplier");
+    },
+    onError: (error) => {
+      console.error("削除エラー:", error);
+    },
+  });
+
   // 編集モードの切り替え
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
@@ -99,6 +122,11 @@ export default function SupplierDetailPage() {
   // フォーム送信ハンドラー
   const handleSubmit = (data: SupplierFormData) => {
     updateMutation.mutate(data);
+  };
+
+  // 削除実行ハンドラー
+  const handleDelete = () => {
+    deleteMutation.mutate();
   };
 
   if (isLoading) {
@@ -144,10 +172,49 @@ export default function SupplierDetailPage() {
             <Heading size="lg">仕入先詳細</Heading>
           </Flex>
           {!isEditing ? (
-            <Button onClick={toggleEditMode}>
-              <LuPencil style={{ marginRight: "8px" }} />
-              編集
-            </Button>
+            <Flex gap={2}>
+              <Button onClick={toggleEditMode}>
+                <LuPencil style={{ marginRight: "8px" }} />
+                編集
+              </Button>
+              <Dialog.Root role="alertdialog">
+                <Dialog.Trigger asChild>
+                  <Button variant="outline">
+                    <LuTrash2 style={{ marginRight: "8px" }} />
+                    削除
+                  </Button>
+                </Dialog.Trigger>
+                <Portal>
+                  <Dialog.Backdrop />
+                  <Dialog.Positioner>
+                    <Dialog.Content>
+                      <Dialog.Header>
+                        <Dialog.Title>削除しますか?</Dialog.Title>
+                      </Dialog.Header>
+                      <Dialog.Body>
+                        「{supplier.name}」を削除してもよろしいですか？
+                        この操作は取り消せません。
+                      </Dialog.Body>
+                      <Dialog.Footer>
+                        <Dialog.ActionTrigger asChild>
+                          <Button variant="outline">キャンセル</Button>
+                        </Dialog.ActionTrigger>
+                        <Button
+                          colorPalette="red"
+                          onClick={handleDelete}
+                          disabled={deleteMutation.isPending}
+                        >
+                          削除する
+                        </Button>
+                      </Dialog.Footer>
+                      <Dialog.CloseTrigger asChild>
+                        <CloseButton size="sm" />
+                      </Dialog.CloseTrigger>
+                    </Dialog.Content>
+                  </Dialog.Positioner>
+                </Portal>
+              </Dialog.Root>
+            </Flex>
           ) : (
             <Flex gap={2}>
               <Button
