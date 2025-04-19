@@ -10,12 +10,17 @@ import {
   Text,
   Card,
   Table,
+  Dialog,
+  Portal,
+  CloseButton,
+  Checkbox,
+  ActionBar,
 } from "@chakra-ui/react";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuTrash2 } from "react-icons/lu";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Supplier, SupplierResponse } from "@/types";
 import axiosClient from "@/lib/axiosClient";
@@ -26,10 +31,19 @@ const fetchSuppliers = async (url: string): Promise<SupplierResponse> => {
   return data;
 };
 
+// 複数の仕入先を削除する関数
+const deleteMultipleSuppliers = async (ids: number[]): Promise<void> => {
+  await axiosClient.post(`/api/masters/suppliers/bulk-delete/`, { ids });
+};
+
 export default function SupplierListPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   // APIのURLを状態として管理
   const [apiUrl, setApiUrl] = useState("/api/masters/suppliers/");
+  // 選択された仕入先のIDを管理
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const hasSelection = selectedIds.length > 0;
 
   // React Queryを使用してデータを取得
   const {
@@ -42,16 +56,65 @@ export default function SupplierListPage() {
     placeholderData: (previousData) => previousData,
   });
 
+  // 複数削除のミューテーション
+  const deleteMultipleMutation = useMutation({
+    mutationFn: deleteMultipleSuppliers,
+    onSuccess: (data) => {
+      // キャッシュの無効化
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      // 選択をクリア
+      setSelectedIds([]);
+    },
+    onError: (error) => {
+      console.error("削除エラー:", error);
+    },
+  });
+
   // ページネーションハンドラー
   const handlePrevPage = () => {
     if (suppliers?.previous) {
       setApiUrl(suppliers.previous);
+      setSelectedIds([]); // ページ切り替え時に選択をクリア
     }
   };
 
   const handleNextPage = () => {
     if (suppliers?.next) {
       setApiUrl(suppliers.next);
+      setSelectedIds([]); // ページ切り替え時に選択をクリア
+    }
+  };
+
+  // チェックボックスの選択ハンドラー
+  const handleCheckboxChange = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        return [...prev, id];
+      } else {
+        return prev.filter((item) => item !== id);
+      }
+    });
+  };
+
+  // 全選択/全解除ハンドラー
+  const handleSelectAll = (isChecked: boolean) => {
+    setSelectedIds(
+      isChecked ? suppliers!.results.map((supplier) => supplier.id) : []
+    );
+  };
+
+  // 複数削除ハンドラー
+  const handleDeleteMultiple = () => {
+    if (selectedIds.length > 0) {
+      deleteMultipleMutation.mutate(selectedIds);
+    }
+  };
+
+  // 行クリックハンドラー - チェックボックスクリック時は詳細ページに遷移させない
+  const handleRowClick = (supplierId: number, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName !== "INPUT") {
+      router.push(`/partner/supplier/${supplierId}`);
     }
   };
 
@@ -84,6 +147,23 @@ export default function SupplierListPage() {
               <Table.Root interactive variant="outline" showColumnBorder>
                 <Table.Header bg="gray.50">
                   <Table.Row>
+                    <Table.Cell width="40px">
+                      <Checkbox.Root
+                        checked={
+                          hasSelection &&
+                          selectedIds.length < suppliers.results.length
+                            ? "indeterminate"
+                            : selectedIds.length > 0
+                        }
+                        onCheckedChange={(change) => {
+                          const isChecked = change?.checked === true;
+                          handleSelectAll(isChecked);
+                        }}
+                      >
+                        <Checkbox.HiddenInput />
+                        <Checkbox.Control />
+                      </Checkbox.Root>
+                    </Table.Cell>
                     <Table.Cell fontWeight="bold">仕入先名</Table.Cell>
                     <Table.Cell fontWeight="bold">仕入先コード</Table.Cell>
                     <Table.Cell fontWeight="bold">住所</Table.Cell>
@@ -95,11 +175,21 @@ export default function SupplierListPage() {
                   {suppliers.results.map((supplier: Supplier) => (
                     <Table.Row
                       key={supplier.id}
-                      onClick={() =>
-                        router.push(`/partner/supplier/${supplier.id}`)
-                      }
+                      onClick={(e) => handleRowClick(supplier.id, e)}
                       cursor="pointer"
                     >
+                      <Table.Cell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox.Root
+                          checked={selectedIds.includes(supplier.id)}
+                          onCheckedChange={(change) => {
+                            const isChecked = change?.checked === true;
+                            handleCheckboxChange(supplier.id, isChecked);
+                          }}
+                        >
+                          <Checkbox.HiddenInput />
+                          <Checkbox.Control />
+                        </Checkbox.Root>
+                      </Table.Cell>
                       <Table.Cell>{supplier.name}</Table.Cell>
                       <Table.Cell>{supplier.supplier_code}</Table.Cell>
                       <Table.Cell>{`${supplier.prefecture}${supplier.city}`}</Table.Cell>
@@ -149,6 +239,58 @@ export default function SupplierListPage() {
           </Flex>
         </>
       ) : null}
+
+      {/* ActionBar for bulk actions */}
+      <ActionBar.Root open={hasSelection}>
+        <Portal>
+          <ActionBar.Positioner>
+            <ActionBar.Content>
+              <ActionBar.SelectionTrigger>
+                {selectedIds.length}件選択中
+              </ActionBar.SelectionTrigger>
+              <ActionBar.Separator />
+              <Dialog.Root>
+                <Dialog.Trigger asChild>
+                  <Button variant="surface" size="sm" colorPalette="red">
+                    <LuTrash2 />
+                    削除
+                  </Button>
+                </Dialog.Trigger>
+                <Portal>
+                  <Dialog.Backdrop />
+                  <Dialog.Positioner>
+                    <Dialog.Content>
+                      <Dialog.Header>
+                        <Dialog.Title>削除しますか?</Dialog.Title>
+                      </Dialog.Header>
+                      <Dialog.Body>
+                        選択した{selectedIds.length}
+                        件の仕入先を削除してもよろしいですか？
+                        この操作は取り消せません。
+                      </Dialog.Body>
+                      <Dialog.Footer>
+                        <Dialog.ActionTrigger asChild>
+                          <Button variant="outline">キャンセル</Button>
+                        </Dialog.ActionTrigger>
+                        <Button
+                          colorPalette="red"
+                          onClick={handleDeleteMultiple}
+                          disabled={deleteMultipleMutation.isPending}
+                        >
+                          削除する
+                        </Button>
+                      </Dialog.Footer>
+                      <Dialog.CloseTrigger asChild>
+                        <CloseButton size="sm" />
+                      </Dialog.CloseTrigger>
+                    </Dialog.Content>
+                  </Dialog.Positioner>
+                </Portal>
+              </Dialog.Root>
+            </ActionBar.Content>
+          </ActionBar.Positioner>
+        </Portal>
+      </ActionBar.Root>
     </Box>
   );
 }
