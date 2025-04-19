@@ -59,11 +59,35 @@ export default function SupplierListPage() {
   // 複数削除のミューテーション
   const deleteMultipleMutation = useMutation({
     mutationFn: deleteMultipleSuppliers,
-    onSuccess: (data) => {
-      // キャッシュの無効化
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    onSuccess: () => {
+      // 現在のページのすべてのアイテムが削除されたかチェック
+      const allCurrentPageItemsDeleted =
+        suppliers &&
+        suppliers.results.length > 0 &&
+        suppliers.results.every((supplier) =>
+          selectedIds.includes(supplier.id)
+        );
+
+      // 全アイテム削除かつ最初のページではない場合は前のページに戻る
+      if (allCurrentPageItemsDeleted && suppliers && suppliers.current > 1) {
+        if (suppliers.previous) {
+          // 前のページに移動
+          setApiUrl(suppliers.previous);
+        } else {
+          // 最初のページに戻る
+          const baseUrl = apiUrl.split("?")[0];
+          setApiUrl(baseUrl);
+        }
+      }
+
       // 選択をクリア
       setSelectedIds([]);
+
+      // 少し遅延してからキャッシュを無効化
+      // これにより新しいURLでの再取得が適切に行われる
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      }, 100);
     },
     onError: (error) => {
       console.error("削除エラー:", error);
