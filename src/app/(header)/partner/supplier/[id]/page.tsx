@@ -72,12 +72,23 @@ export default function SupplierDetailPage() {
   const queryClient = useQueryClient();
   const supplierId = params.id as string;
   const [isEditing, setIsEditing] = useState(false);
+  const [originalUpdatedAt, setOriginalUpdatedAt] = useState<string | null>(
+    null
+  );
+
+  // 競合チェックダイアログの表示状態
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+
+  // 一時保存する変更データ
+  const [pendingFormData, setPendingFormData] =
+    useState<SupplierFormData | null>(null);
 
   // 仕入先詳細データの取得
   const {
     data: supplier,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ["supplier", supplierId],
     queryFn: () => fetchSupplierDetail(supplierId),
@@ -93,6 +104,7 @@ export default function SupplierDetailPage() {
 
       // 編集モードを終了
       setIsEditing(false);
+      setPendingFormData(null);
     },
     onError: (error) => {
       console.error("更新エラー:", error);
@@ -116,12 +128,49 @@ export default function SupplierDetailPage() {
 
   // 編集モードの切り替え
   const toggleEditMode = () => {
+    if (!isEditing && supplier) {
+      // 編集モード開始時に元の更新日時を保存
+      setOriginalUpdatedAt(supplier.updated_at || null);
+    }
     setIsEditing(!isEditing);
   };
 
-  // フォーム送信ハンドラー
-  const handleSubmit = (data: SupplierFormData) => {
-    updateMutation.mutate(data);
+  // 上書き保存の実行
+  const handleForceUpdate = () => {
+    if (pendingFormData) {
+      updateMutation.mutate(pendingFormData);
+    }
+  };
+
+  // 変更を破棄して最新データを表示
+  const handleDiscardChanges = () => {
+    refetch();
+    setIsEditing(false);
+    setPendingFormData(null);
+  };
+
+  // フォーム送信ハンドラー - 競合チェック付き
+  const handleSubmit = async (data: SupplierFormData) => {
+    try {
+      // 編集開始後に変更がないか最新データを取得
+      // 既存の関数を再利用
+      const latestData = await fetchSupplierDetail(supplierId);
+
+      // 編集開始時と現在のupdated_atを比較
+      const hasBeenModified =
+        originalUpdatedAt && latestData.updated_at !== originalUpdatedAt;
+
+      if (hasBeenModified) {
+        // 変更があった場合、確認ダイアログを表示
+        setPendingFormData(data);
+        setIsConflictDialogOpen(true);
+      } else {
+        // 変更がなければそのまま更新
+        updateMutation.mutate(data);
+      }
+    } catch (error) {
+      console.error("競合チェックエラー:", error);
+    }
   };
 
   // 削除実行ハンドラー
@@ -174,13 +223,13 @@ export default function SupplierDetailPage() {
           {!isEditing ? (
             <Flex gap={2}>
               <Button onClick={toggleEditMode}>
-                <LuPencil style={{ marginRight: "8px" }} />
+                <LuPencil />
                 編集
               </Button>
               <Dialog.Root role="alertdialog">
                 <Dialog.Trigger asChild>
                   <Button variant="outline">
-                    <LuTrash2 style={{ marginRight: "8px" }} />
+                    <LuTrash2 />
                     削除
                   </Button>
                 </Dialog.Trigger>
@@ -222,7 +271,7 @@ export default function SupplierDetailPage() {
                 onClick={toggleEditMode}
                 disabled={updateMutation.isPending}
               >
-                <LuX style={{ marginRight: "8px" }} />
+                <LuX />
                 キャンセル
               </Button>
             </Flex>
@@ -294,6 +343,44 @@ export default function SupplierDetailPage() {
           </Card.Body>
         </Card.Root>
       </Stack>
+
+      {/* 競合確認ダイアログ */}
+      <Dialog.Root
+        open={isConflictDialogOpen}
+        onOpenChange={(e) => setIsConflictDialogOpen(e.open)}
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>他のユーザーによる変更があります</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                他のユーザーがこのデータを変更しています。それでも上書き保存しますか？
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">キャンセル</Button>
+                </Dialog.ActionTrigger>
+                <Dialog.ActionTrigger asChild>
+                  <Button onClick={handleDiscardChanges} variant="outline">
+                    変更を確認
+                  </Button>
+                </Dialog.ActionTrigger>
+                <Dialog.ActionTrigger asChild>
+                  <Button onClick={handleForceUpdate} colorPalette="red">
+                    上書き保存
+                  </Button>
+                </Dialog.ActionTrigger>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </Container>
   );
 }
