@@ -12,6 +12,7 @@ import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import { IconType } from "react-icons";
 import { HiOutlineShoppingCart, HiOutlineUsers } from "react-icons/hi";
+import { LuPackage } from "react-icons/lu";
 
 // ========== 型定義 ==========
 
@@ -144,9 +145,18 @@ export const Sidebar = () => {
         <NavItem
           icon={HiOutlineShoppingCart}
           href="/order"
-          active={pathname.includes("/order")}
+          active={pathname === "/order" || pathname.startsWith("/order/")}
         >
           発注
+        </NavItem>
+
+        {/* 部品メニュー */}
+        <NavItem
+          icon={LuPackage}
+          href="/part"
+          active={pathname === "/part" || pathname.startsWith("/part/")}
+        >
+          部品
         </NavItem>
 
         {/* アコーディオンメニュー: 取引先 */}
@@ -180,7 +190,10 @@ export const Sidebar = () => {
                   {/* サブメニュー: 仕入先 */}
                   <SubMenuItem
                     href="/partner/supplier"
-                    active={pathname.includes("/partner/supplier")}
+                    active={
+                      pathname === "/partner/supplier" ||
+                      pathname.startsWith("/partner/supplier/")
+                    }
                   >
                     仕入先
                   </SubMenuItem>
