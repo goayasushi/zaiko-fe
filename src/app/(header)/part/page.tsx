@@ -5,7 +5,6 @@ import {
   Button,
   Flex,
   Heading,
-  Icon,
   Stack,
   Text,
   Card,
