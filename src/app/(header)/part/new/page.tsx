@@ -279,7 +279,7 @@ export default function NewPartPage() {
                   min={0}
                   max={1}
                   step={0.01}
-                  defaultValue={String(field.value * 100)}
+                  defaultValue={String(field.value ? field.value * 100 : 10)}
                   onValueChange={(value) => field.onChange(value.valueAsNumber)}
                   formatOptions={{
                     style: "percent",
