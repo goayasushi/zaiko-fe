@@ -22,6 +22,15 @@ export type Supplier = {
 };
 
 /**
+ * 仕入先簡易情報の型定義
+ * API応答に含まれる簡略化された仕入先情報
+ */
+export type SupplierSimple = {
+  id: number;
+  name: string;
+};
+
+/**
  * 仕入先フォームの型定義
  * フォーム入力用の型
  */
